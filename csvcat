@@ -1,0 +1,112 @@
+#!/usr/bin/python3
+#------------------------------------------------------------------------------
+#   A utility for printing CSV files in a readable, equal-column width format.
+# Works well with large files as only a maximum of 1 line is read when reading
+# input and when writing ouput.
+#                                                               Author: 4g3nt47
+#------------------------------------------------------------------------------
+
+import sys, os, argparse
+
+def csvcat(rfo, delim="\t", border=" ", match=[], ignore=[], skip=0, max_rows=-1, output_raw=False):
+  # Calculate max length of each column
+  delim = delim.encode()
+  cols_len = []
+  row_count = 0
+  row_count_to_print = 0
+  while True:
+    line = rfo.readline()
+    if not line: break
+    row_count += 1
+    if row_count <= skip: continue # Skip the rows that needed skipping.
+    line = line.strip()  
+    line = line.split(delim)
+    i = 0;
+    for i in range(len(line)):
+      col = line[i]
+      if i >= len(cols_len): # Make a place for it.
+        cols_len.append(0)
+      if i+1 in ignore or output_raw: continue # No need to check length since we ain't gonna print this.
+      col_len = len(col)
+      if col_len > cols_len[i]: cols_len[i] = col_len
+    row_count_to_print += 1
+    if (max_rows != -1 and row_count_to_print >= max_rows): break # We got enough. Break.
+  rfo.seek(0) # Need to read the file again for printing..
+  # Generate an array of column indexes that are to be displayed.
+  display_cols = []
+  if not match and not ignore: # Output everything
+    display_cols = [i+1 for i in range(len(cols_len))]
+  elif match:
+    display_cols = match
+  else:
+    display_cols = [i+1 for i in range(len(cols_len)) if i+1 not in ignore]
+  # Start printing.
+  row_count = 0
+  row_count_printed = 0
+  while True:
+    line = rfo.readline()
+    if not line: break
+    row_count += 1
+    if row_count <= skip: continue
+    cols = line.split(delim)
+    fmt = ""
+    total_cols = len(cols_len)
+    for col_index in range(len(display_cols)):
+      i = display_cols[col_index] - 1
+      try:
+        col = cols[i].decode().strip()
+        if not output_raw:
+          fmt += "%-" + str(cols_len[i]) + "s  " + border
+        else:
+          fmt += "%s" + (delim.decode() if col_index + 1 < len(display_cols) else "")
+        fmt = fmt %(col)
+      except IndexError:
+        sys.stderr.write("[-] Index error when processing row number %d\n" %(row_count))
+        fmt = ""
+    if not fmt: continue
+    print(fmt.strip())
+    row_count_printed += 1
+    if (max_rows != -1 and row_count_printed >= max_rows): break
+  # Done :)
+  return
+
+def expand_cols_range(val):
+  try:
+    val = val.strip()
+    if "-" in val:
+      st, end = val.split("-")
+      st = int(st.strip())
+      end = int(end.strip())
+      if st >= end: return [st]
+      return [int(i) for i in range(st, end+1)]
+    return [int(val)]
+  except ValueError:
+    return []
+
+if __name__ == '__main__':
+  agp = argparse.ArgumentParser(prog=sys.argv[0].split("/")[-1], description='A command-line CSV pretty-printer by 4g3nt47 (https://github.com/4g3nt47)')
+  agp.add_argument('filename', help='CSV file to read')
+  agp.add_argument('-b', dest='border', help='The columns border to use in output (default is whitespace)', default=' ')
+  agp.add_argument('-m', dest='match', help='Comma-separated column numbers to print (3,1,6-9) (prioritized over -i)', default='')
+  agp.add_argument('-i', dest='ignore', help='Comma-separated column numbers to ignore (1,3,6-9)', default='')
+  agp.add_argument('-c', dest='use_c', help='Use comma as input delimiter', action='store_true')
+  agp.add_argument('-r', dest='output_raw', help='Output raw (no pretty-printing)', action='store_true')
+  agp.add_argument('-s', dest='skip', help='Number of rows to skip', default=0)
+  agp.add_argument('-n', dest='max_rows', help='Maximum number of rows to print', default=-1)
+  args = agp.parse_args()
+  rfo = None;
+  try:
+    rfo = open(args.filename, "rb")
+  except:
+    print("[-] Error opening file: " + args.filename)
+    exit(1)
+  delim = ',' if args.use_c == True else '\t'
+  border = args.border
+  ignore = []
+  for i in args.ignore.split(","):
+    ignore.extend(expand_cols_range(i))
+  match = []
+  for i in args.match.split(","):
+    match.extend(expand_cols_range(i))
+  csvcat(rfo, delim=delim, border=border, match=match, ignore=ignore, skip=int(args.skip), max_rows=int(args.max_rows), output_raw=args.output_raw)
+  exit(0)
