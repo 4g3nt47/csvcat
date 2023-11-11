@@ -62,9 +62,10 @@ def csvcat(rfo, delim="\t", border=" ", match=[], ignore=[], skip=0, max_rows=-1
         else:
           fmt += "%s" + (delim.decode() if col_index + 1 < len(display_cols) else "")
         fmt = fmt %(col)
-      except IndexError:
-        sys.stderr.write("[-] Index error when processing row number %d\n" %(row_count))
+      except Exception as e:
+        sys.stderr.write("[-] Error processing row number: %d - %s\n" %(row_count, str(e)))
         fmt = ""
+        break
     if not fmt: continue
     print(fmt.strip())
     row_count_printed += 1
