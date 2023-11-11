@@ -19,7 +19,7 @@ def csvcat(rfo, delim="\t", border=" ", match=[], ignore=[], skip=0, max_rows=-1
     if not line: break
     row_count += 1
     if row_count <= skip: continue # Skip the rows that needed skipping.
-    line = line.strip()  
+    line = line.strip()
     line = line.split(delim)
     i = 0;
     for i in range(len(line)):
@@ -48,7 +48,9 @@ def csvcat(rfo, delim="\t", border=" ", match=[], ignore=[], skip=0, max_rows=-1
     if not line: break
     row_count += 1
     if row_count <= skip: continue
+    if not line.strip(): continue
     cols = line.split(delim)
+    if not cols: continue
     fmt = ""
     total_cols = len(cols_len)
     for col_index in range(len(display_cols)):
